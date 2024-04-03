@@ -1,34 +1,34 @@
 cd ..
 git clone https://github.com/CLIUtils/CLI11
-git clone https://gitlab.com/libeigen/eigen.git
-git clone https://github.com/stevenlovegrove/Pangolin.git
+
+sudo apt install ninja-build doxygen -y
 
 cd CLI11
 mkdir build
 cd build
-git submodule update --init
 cmake ..
-cmake --build .
+make -j
 sudo cmake --install .
 
-cd ../../eigen
-git checkout 3.4
+cd ../../deep-sdf/deep_sdf/Lib/eigen
 mkdir build
 cd build
-cmake ..
-sudo make install
+cmake -DCMAKE_INSTALL_PREFIX=./install ..
+maks -j
+make install
 
 cd ../../Pangolin
-git checkout v0.6
-sudo apt install ninja-build doxygen -y
-git submodule update --init
+cd external
+git clone https://github.com/pybind/pybind11.git
+cd ..
 mkdir build
 cd build
-cmake ..
-cmake --build .
-sudo make install
+cmake -DCMAKE_INSTALL_PREFIX=./install ..
+make -j
+make install
 
 if [ "$(uname)" == "Darwin" ]; then
-  brew install brewsci/science/nanoflann
+	brew install brewsci/science/nanoflann
 elif [ "$(uname)" = "Linux" ]; then
-  sudo apt install libnanoflann-dev
+	sudo apt install libnanoflann-dev
+fi
