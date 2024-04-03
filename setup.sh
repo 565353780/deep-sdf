@@ -32,3 +32,11 @@ if [ "$(uname)" == "Darwin" ]; then
 elif [ "$(uname)" = "Linux" ]; then
 	sudo apt install libnanoflann-dev
 fi
+
+cd ../../../..
+mkdir build
+cd build
+cmake -DEigen3_DIR=./deep_sdf/Lib/eigen/build/install \
+	-DPangolin_DIR=./deep_sdf/Lib/Pangolin/build/install \
+	..
+make -j
