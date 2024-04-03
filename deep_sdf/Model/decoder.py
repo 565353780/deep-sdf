@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
-# Copyright 2004-present Facebook. All Rights Reserved.
-
-import torch.nn as nn
 import torch
 import torch.nn.functional as F
+from torch import nn
 
 
 class Decoder(nn.Module):
@@ -21,9 +18,6 @@ class Decoder(nn.Module):
         latent_dropout=False,
     ):
         super(Decoder, self).__init__()
-
-        def make_sequence():
-            return []
 
         dims = [latent_size + 3] + dims + [1]
 
