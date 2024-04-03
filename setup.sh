@@ -2,7 +2,6 @@ cd ..
 git clone https://github.com/CLIUtils/CLI11
 git clone https://gitlab.com/libeigen/eigen.git
 git clone https://github.com/stevenlovegrove/Pangolin.git
-git clone https://github.com/jlblancoc/nanoflann
 
 cd CLI11
 mkdir build
