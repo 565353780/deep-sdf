@@ -23,7 +23,7 @@ git clone https://github.com/pybind/pybind11.git
 cd ..
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=./install ..
+cmake -DCMAKE_INSTALL_PREFIX=./install -DCMAKE_BUILD_TYPE=Debug ..
 make -j
 make install
 

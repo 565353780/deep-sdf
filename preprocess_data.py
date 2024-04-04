@@ -3,52 +3,22 @@
 
 import os
 import json
-import subprocess
-import concurrent.futures
+from subprocess import Popen, PIPE
+from concurrent.futures import ThreadPoolExecutor
 
-import deep_sdf
 import deep_sdf.workspace as ws
-
-
-def filter_classes_glob(patterns, classes):
-    import fnmatch
-
-    passed_classes = set()
-    for pattern in patterns:
-        passed_classes = passed_classes.union(
-            set(filter(lambda x: fnmatch.fnmatch(x, pattern), classes))
-        )
-
-    return list(passed_classes)
-
-
-def filter_classes_regex(patterns, classes):
-    import re
-
-    passed_classes = set()
-    for pattern in patterns:
-        regex = re.compile(pattern)
-        passed_classes = passed_classes.union(set(filter(regex.match, classes)))
-
-    return list(passed_classes)
-
-
-def filter_classes(patterns, classes):
-    if patterns[0] == "glob":
-        return filter_classes_glob(patterns, classes[1:])
-    elif patterns[0] == "regex":
-        return filter_classes_regex(patterns, classes[1:])
-    else:
-        return filter_classes_glob(patterns, classes)
 
 
 def process_mesh(mesh_filepath, target_filepath, executable, additional_args):
     print(mesh_filepath + " --> " + target_filepath)
     command = [executable, "-m", mesh_filepath, "-o", target_filepath] + additional_args
 
-    subproc = subprocess.Popen(command, stdout=subprocess.DEVNULL)
-    subproc.wait()
+    cmd = executable + ' -m ' + mesh_file_path + ' -o ' + target_filepath
+    print(cmd)
 
+    subproc = Popen(command, stdout=PIPE)
+    subproc.wait()
+    return
 
 def append_data_source_map(data_dir, name, source):
     data_source_map_filename = ws.get_data_source_map_filename(data_dir)
@@ -75,18 +45,10 @@ def append_data_source_map(data_dir, name, source):
 
 
 if __name__ == "__main__":
+    source_dir = "/home/chli/chLi/Dataset/ShapeNet/Core/ShapeNetCore.v2/"
     data_dir = "/home/chli/chLi/Dataset/ShapeNet/sdf/"
     data_dir = "./output/sdf/"
-    source_dir = "/home/chli/chLi/Dataset/ShapeNet/Core/ShapeNetCore.v2/"
-    source_name = None
-    split = False
-    skip = True
     num_threads = 8
-    test_sampling = False
-
-    debug = True
-    quiet = False
-    log_file = None
 
     additional_general_args = []
 
@@ -97,9 +59,6 @@ if __name__ == "__main__":
     sdf_executable = deepsdf_dir + "bin/PreprocessMesh"
     sdf_subdir = "SdfSamples"
     sdf_extension = ".npz"
-
-    if test_sampling:
-        additional_general_args += ["-t"]
 
     srf_dest_dir = data_dir + srf_subdir + "/"
     sdf_dest_dir = data_dir + sdf_subdir + "/"
@@ -128,9 +87,8 @@ if __name__ == "__main__":
 
     normalization_param_filename = data_dir + "normalization_param.npz"
 
-    specific_args = ["-n", normalization_param_filename]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
         executor.submit(
             process_mesh,
             mesh_file_path,

@@ -20,17 +20,15 @@
 
 extern pangolin::GlSlProgram GetShaderProgram();
 
-void SampleFromSurface(
-    pangolin::Geometry& geom,
-    std::vector<Eigen::Vector3f>& surfpts,
-    int num_sample) {
+void SampleFromSurface(pangolin::Geometry &geom,
+                       std::vector<Eigen::Vector3f> &surfpts, int num_sample) {
   float total_area = 0.0f;
 
   std::vector<float> cdf_by_area;
 
   std::vector<Eigen::Vector3i> linearized_faces;
 
-  for (const auto& object : geom.objects) {
+  for (const auto &object : geom.objects) {
     auto it_vert_indices = object.second.attributes.find("vertex_indices");
     if (it_vert_indices != object.second.attributes.end()) {
       pangolin::Image<uint32_t> ibo =
@@ -42,10 +40,10 @@ void SampleFromSurface(
     }
   }
 
-  pangolin::Image<float> vertices =
-      pangolin::get<pangolin::Image<float>>(geom.buffers["geometry"].attributes["vertex"]);
+  pangolin::Image<float> vertices = pangolin::get<pangolin::Image<float>>(
+      geom.buffers["geometry"].attributes["vertex"]);
 
-  for (const Eigen::Vector3i& face : linearized_faces) {
+  for (const Eigen::Vector3i &face : linearized_faces) {
     float area = TriangleArea(
         (Eigen::Vector3f)Eigen::Map<Eigen::Vector3f>(vertices.RowPtr(face(0))),
         (Eigen::Vector3f)Eigen::Map<Eigen::Vector3f>(vertices.RowPtr(face(1))),
@@ -75,7 +73,7 @@ void SampleFromSurface(
         lower_bound(cdf_by_area.begin(), cdf_by_area.end(), tri_sample);
     int tri_index = tri_index_iter - cdf_by_area.begin();
 
-    const Eigen::Vector3i& face = linearized_faces[tri_index];
+    const Eigen::Vector3i &face = linearized_faces[tri_index];
 
     surfpts.push_back(SamplePointFromTriangle(
         Eigen::Map<Eigen::Vector3f>(vertices.RowPtr(face(0))),
@@ -84,18 +82,16 @@ void SampleFromSurface(
   }
 }
 
-void SampleSDFNearSurface(
-    KdVertexListTree& kdTree,
-    std::vector<Eigen::Vector3f>& vertices,
-    std::vector<Eigen::Vector3f>& xyz_surf,
-    std::vector<Eigen::Vector3f>& normals,
-    std::vector<Eigen::Vector3f>& xyz,
-    std::vector<float>& sdfs,
-    int num_rand_samples,
-    float variance,
-    float second_variance,
-    float bounding_cube_dim,
-    int num_votes) {
+void SampleSDFNearSurface(KdVertexListTree &kdTree,
+                          std::vector<Eigen::Vector3f> &vertices,
+                          std::vector<Eigen::Vector3f> &xyz_surf,
+                          std::vector<Eigen::Vector3f> &normals,
+                          std::vector<Eigen::Vector3f> &xyz,
+                          std::vector<float> &sdfs, int num_rand_samples,
+                          float variance, float second_variance,
+                          float bounding_cube_dim, int num_votes) {
+  using namespace std;
+  cout << "start SampleSDFNearSurface...\n";
   float stdv = sqrt(variance);
 
   std::random_device seeder;
@@ -130,22 +126,35 @@ void SampleSDFNearSurface(
         rand_dist(generator) * bounding_cube_dim - bounding_cube_dim / 2,
         rand_dist(generator) * bounding_cube_dim - bounding_cube_dim / 2));
   }
+  cout << "start compute sdf value...\n";
 
   // now compute sdf for each xyz sample
   for (int s = 0; s < (int)xyz.size(); s++) {
     Eigen::Vector3f samp_vert = xyz[s];
     std::vector<int> cl_indices(num_votes);
     std::vector<float> cl_distances(num_votes);
-    kdTree.knnSearch(samp_vert.data(), num_votes, cl_indices.data(), cl_distances.data());
+
+    cout << "start knnSearch...\n";
+    kdTree.knnSearch(samp_vert.data(), num_votes, cl_indices.data(),
+                     cl_distances.data());
+    cout << "finish knnSearch...\n";
 
     int num_pos = 0;
     float sdf;
 
-    for (int ind = 0; ind < num_votes; ind++) {
+    cout << "start num_vote...\n";
+    for (int ind = 0; ind < num_votes; ++ind) {
+      cout << "start num_vote init " << ind << "...\n";
       uint32_t cl_ind = cl_indices[ind];
+      cout << "cl_ind = " << cl_ind << "...\n";
       Eigen::Vector3f cl_vert = vertices[cl_ind];
+      cout << "vertices.shape:" << vertices.size() << endl;
+      cout << "cl_vert = " << cl_vert << "...\n";
       Eigen::Vector3f ray_vec = samp_vert - cl_vert;
+      cout << "ray_vec = " << ray_vec << "...\n";
       float ray_vec_leng = ray_vec.norm();
+      cout << "ray_vec_leng = " << ray_vec_leng << "...\n";
+      cout << "finish num_vote init " << ind << "...\n";
 
       if (ind == 0) {
         // if close to the surface, use point plane distance
@@ -154,10 +163,13 @@ void SampleSDFNearSurface(
         else
           sdf = ray_vec_leng;
       }
+      cout << "finish get sdf value " << ind << "...\n";
 
       float d = normals[cl_ind].dot(ray_vec / ray_vec_leng);
-      if (d > 0)
-        num_pos++;
+      if (d > 0) {
+        ++num_pos;
+      }
+      cout << "finish ++num_pos " << ind << "...\n";
     }
 
     // all or nothing , else ignore the point
@@ -169,14 +181,13 @@ void SampleSDFNearSurface(
       sdfs.push_back(sdf);
     }
   }
+  cout << "finish num_vote...\n";
 
   xyz = xyz_used;
 }
 
-void writeSDFToNPY(
-    std::vector<Eigen::Vector3f>& xyz,
-    std::vector<float>& sdfs,
-    std::string filename) {
+void writeSDFToNPY(std::vector<Eigen::Vector3f> &xyz, std::vector<float> &sdfs,
+                   std::string filename) {
   unsigned int num_vert = xyz.size();
   std::vector<float> data(num_vert * 4);
   int data_i = 0;
@@ -193,11 +204,8 @@ void writeSDFToNPY(
   cnpy::npy_save(filename, &data[0], {(long unsigned int)num_vert, 4}, "w");
 }
 
-void writeSDFToNPZ(
-    std::vector<Eigen::Vector3f>& xyz,
-    std::vector<float>& sdfs,
-    std::string filename,
-    bool print_num = false) {
+void writeSDFToNPZ(std::vector<Eigen::Vector3f> &xyz, std::vector<float> &sdfs,
+                   std::string filename, bool print_num = false) {
   unsigned int num_vert = xyz.size();
   std::vector<float> pos;
   std::vector<float> neg;
@@ -217,20 +225,19 @@ void writeSDFToNPZ(
     }
   }
 
-  cnpy::npz_save(filename, "pos", &pos[0], {(long unsigned int)(pos.size() / 4.0), 4}, "w");
-  cnpy::npz_save(filename, "neg", &neg[0], {(long unsigned int)(neg.size() / 4.0), 4}, "a");
+  cnpy::npz_save(filename, "pos", &pos[0],
+                 {(long unsigned int)(pos.size() / 4.0), 4}, "w");
+  cnpy::npz_save(filename, "neg", &neg[0],
+                 {(long unsigned int)(neg.size() / 4.0), 4}, "a");
   if (print_num) {
     std::cout << "pos num: " << pos.size() / 4.0 << std::endl;
     std::cout << "neg num: " << neg.size() / 4.0 << std::endl;
   }
 }
 
-void writeSDFToPLY(
-    std::vector<Eigen::Vector3f>& xyz,
-    std::vector<float>& sdfs,
-    std::string filename,
-    bool neg_only = true,
-    bool pos_only = false) {
+void writeSDFToPLY(std::vector<Eigen::Vector3f> &xyz, std::vector<float> &sdfs,
+                   std::string filename, bool neg_only = true,
+                   bool pos_only = false) {
   int num_verts;
   if (neg_only) {
     num_verts = 0;
@@ -272,14 +279,16 @@ void writeSDFToPLY(
       sdf = -sdf;
     int sdf_i = std::min((int)(sdf * 255), 255);
     if (!neg_only && pos)
-      plyFile << v[0] << " " << v[1] << " " << v[2] << " " << 0 << " " << 0 << " " << sdf_i << "\n";
+      plyFile << v[0] << " " << v[1] << " " << v[2] << " " << 0 << " " << 0
+              << " " << sdf_i << "\n";
     if (!pos_only && neg)
-      plyFile << v[0] << " " << v[1] << " " << v[2] << " " << sdf_i << " " << 0 << " " << 0 << "\n";
+      plyFile << v[0] << " " << v[1] << " " << v[2] << " " << sdf_i << " " << 0
+              << " " << 0 << "\n";
   }
   plyFile.close();
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   std::string meshFileName;
   bool vis = false;
 
@@ -311,7 +320,8 @@ int main(int argc, char** argv) {
     variance = 0.05;
 
   float second_variance = variance / 10;
-  std::cout << "variance: " << variance << " second: " << second_variance << std::endl;
+  std::cout << "variance: " << variance << " second: " << second_variance
+            << std::endl;
   if (test_flag) {
     second_variance = variance / 100;
     num_samp_near_surf_ratio = 45.0f / 50.0f;
@@ -333,7 +343,7 @@ int main(int argc, char** argv) {
   {
     int total_num_faces = 0;
 
-    for (const auto& object : geom.objects) {
+    for (const auto &object : geom.objects) {
       auto it_vert_indices = object.second.attributes.find("vertex_indices");
       if (it_vert_indices != object.second.attributes.end()) {
         pangolin::Image<uint32_t> ibo =
@@ -344,14 +354,16 @@ int main(int argc, char** argv) {
     }
 
     //      const int total_num_indices = total_num_faces * 3;
-    pangolin::ManagedImage<uint8_t> new_buffer(3 * sizeof(uint32_t), total_num_faces);
+    pangolin::ManagedImage<uint8_t> new_buffer(3 * sizeof(uint32_t),
+                                               total_num_faces);
 
     pangolin::Image<uint32_t> new_ibo =
-        new_buffer.UnsafeReinterpret<uint32_t>().SubImage(0, 0, 3, total_num_faces);
+        new_buffer.UnsafeReinterpret<uint32_t>().SubImage(0, 0, 3,
+                                                          total_num_faces);
 
     int index = 0;
 
-    for (const auto& object : geom.objects) {
+    for (const auto &object : geom.objects) {
       auto it_vert_indices = object.second.attributes.find("vertex_indices");
       if (it_vert_indices != object.second.attributes.end()) {
         pangolin::Image<uint32_t> ibo =
@@ -365,23 +377,27 @@ int main(int argc, char** argv) {
     }
 
     geom.objects.clear();
-    auto faces = geom.objects.emplace(std::string("mesh"), pangolin::Geometry::Element());
+    auto faces = geom.objects.emplace(std::string("mesh"),
+                                      pangolin::Geometry::Element());
 
     faces->second.Reinitialise(3 * sizeof(uint32_t), total_num_faces);
 
     faces->second.CopyFrom(new_buffer);
 
-    new_ibo = faces->second.UnsafeReinterpret<uint32_t>().SubImage(0, 0, 3, total_num_faces);
+    new_ibo = faces->second.UnsafeReinterpret<uint32_t>().SubImage(
+        0, 0, 3, total_num_faces);
     faces->second.attributes["vertex_indices"] = new_ibo;
   }
 
   // remove textures
   geom.textures.clear();
 
-  pangolin::Image<uint32_t> modelFaces = pangolin::get<pangolin::Image<uint32_t>>(
-      geom.objects.begin()->second.attributes["vertex_indices"]);
+  pangolin::Image<uint32_t> modelFaces =
+      pangolin::get<pangolin::Image<uint32_t>>(
+          geom.objects.begin()->second.attributes["vertex_indices"]);
 
   float max_dist = BoundingCubeNormalization(geom, true);
+  std::cout << "max_dist = " << max_dist << std::endl;
 
   if (vis)
     pangolin::CreateWindowAndBind("Main", 640, 480);
@@ -392,19 +408,21 @@ int main(int argc, char** argv) {
   glDisable(GL_POINT_SMOOTH);
   glDisable(GL_LINE_SMOOTH);
   glDisable(GL_POLYGON_SMOOTH);
-  //glHint(GL_POINT_SMOOTH, GL_DONT_CARE);
-  //glHint(GL_LINE_SMOOTH, GL_DONT_CARE);
-  //glHint(GL_POLYGON_SMOOTH_HINT, GL_DONT_CARE);
+  // glHint(GL_POINT_SMOOTH, GL_DONT_CARE);
+  // glHint(GL_LINE_SMOOTH, GL_DONT_CARE);
+  // glHint(GL_POLYGON_SMOOTH_HINT, GL_DONT_CARE);
   glDisable(GL_MULTISAMPLE_ARB);
   glShadeModel(GL_FLAT);
 
   // Define Projection and initial ModelView matrix
   pangolin::OpenGlRenderState s_cam(
       //                pangolin::ProjectionMatrix(640,480,420,420,320,240,0.05,100),
-      pangolin::ProjectionMatrixOrthographic(-max_dist, max_dist, -max_dist, max_dist, 0, 2.5),
+      pangolin::ProjectionMatrixOrthographic(-max_dist, max_dist, -max_dist,
+                                             max_dist, 0, 2.5),
       pangolin::ModelViewLookAt(0, 0, -1, 0, 0, 0, pangolin::AxisY));
   pangolin::OpenGlRenderState s_cam2(
-      pangolin::ProjectionMatrixOrthographic(-max_dist, max_dist, max_dist, -max_dist, 0, 2.5),
+      pangolin::ProjectionMatrixOrthographic(-max_dist, max_dist, max_dist,
+                                             -max_dist, 0, 2.5),
       pangolin::ModelViewLookAt(0, 0, -1, 0, 0, 0, pangolin::AxisY));
 
   // Create Interactive View in window
@@ -415,7 +433,7 @@ int main(int argc, char** argv) {
   pangolin::GlSlProgram prog = GetShaderProgram();
 
   if (vis) {
-    pangolin::View& d_cam = pangolin::CreateDisplay()
+    pangolin::View &d_cam = pangolin::CreateDisplay()
                                 .SetBounds(0.0, 1.0, 0.0, 1.0, -640.0f / 480.0f)
                                 .SetHandler(&handler);
 
@@ -448,22 +466,24 @@ int main(int argc, char** argv) {
   pangolin::GlFramebuffer framebuffer(vertices, normals, zbuffer);
 
   // View points around a sphere.
-  std::vector<Eigen::Vector3f> views = EquiDistPointsOnSphere(100, max_dist * 1.1);
+  std::vector<Eigen::Vector3f> views =
+      EquiDistPointsOnSphere(100, max_dist * 1.1);
 
   std::vector<Eigen::Vector4f> point_normals;
   std::vector<Eigen::Vector4f> point_verts;
 
   size_t num_tri = modelFaces.h;
   std::vector<Eigen::Vector4f> tri_id_normal_test(num_tri);
-  for (size_t j = 0; j < num_tri; j++)
+  for (size_t j = 0; j < num_tri; ++j) {
     tri_id_normal_test[j] = Eigen::Vector4f(0.0f, 0.0f, 0.0f, 0.0f);
+  }
   int total_obs = 0;
   int wrong_obs = 0;
 
-  for (unsigned int v = 0; v < views.size(); v++) {
+  for (unsigned int v = 0; v < views.size(); ++v) {
     // change camera location
-    s_cam2.SetModelViewMatrix(
-        pangolin::ModelViewLookAt(views[v][0], views[v][1], views[v][2], 0, 0, 0, pangolin::AxisY));
+    s_cam2.SetModelViewMatrix(pangolin::ModelViewLookAt(
+        views[v][0], views[v][1], views[v][2], 0, 0, 0, pangolin::AxisY));
     // Draw the scene to the framebuffer
     framebuffer.Bind();
     glViewport(0, 0, w, h);
@@ -483,20 +503,33 @@ int main(int argc, char** argv) {
     pangolin::TypedImage img_normals;
     normals.Download(img_normals);
     std::vector<Eigen::Vector4f> im_norms = ValidPointsAndTrisFromIm(
-        img_normals.UnsafeReinterpret<Eigen::Vector4f>(), tri_id_normal_test, total_obs, wrong_obs);
+        img_normals.UnsafeReinterpret<Eigen::Vector4f>(), tri_id_normal_test,
+        total_obs, wrong_obs);
     point_normals.insert(point_normals.end(), im_norms.begin(), im_norms.end());
+    std::cout << "point_normals.shape:" << point_normals.size() << std::endl;
 
     pangolin::TypedImage img_verts;
     vertices.Download(img_verts);
+    std::cout << "img_verts.shape:" << img_verts.size() << std::endl;
+    auto test = img_verts.UnsafeReinterpret<Eigen::Vector4f>();
+    std::cout << "test.shape:" << test.size() << std::endl;
+    for (size_t i = 0; i < test.size(); ++i) {
+      if (test[i][3] != 0) {
+        std::cout << "test " << i << "[3] = " << test[i][3] << std::endl;
+      }
+    }
     std::vector<Eigen::Vector4f> im_verts =
         ValidPointsFromIm(img_verts.UnsafeReinterpret<Eigen::Vector4f>());
+    std::cout << "im_verts.shape:" << im_verts.size() << std::endl;
+    exit(0);
     point_verts.insert(point_verts.end(), im_verts.begin(), im_verts.end());
   }
+  std::cout << "point_verts.shape:" << point_verts.size() << std::endl;
 
   int bad_tri = 0;
   for (unsigned int t = 0; t < tri_id_normal_test.size(); t++) {
     if (tri_id_normal_test[t][3] < 0.0f)
-      bad_tri++;
+      ++bad_tri;
   }
 
   std::cout << meshFileName << std::endl;
@@ -506,7 +539,8 @@ int main(int argc, char** argv) {
   float wrong_ratio = (float)(wrong_obs) / float(total_obs);
   float bad_tri_ratio = (float)(bad_tri) / float(num_tri);
 
-  if (wrong_ratio > rejection_criteria_obs || bad_tri_ratio > rejection_criteria_tri) {
+  if (wrong_ratio > rejection_criteria_obs ||
+      bad_tri_ratio > rejection_criteria_tri) {
     std::cout << "mesh rejected" << std::endl;
     //    return 0;
   }
@@ -515,7 +549,7 @@ int main(int argc, char** argv) {
   //    std::vector<Eigen::Vector3f> vertices_all;
   std::vector<Eigen::Vector3f> normals2;
 
-  for (unsigned int v = 0; v < point_verts.size(); v++) {
+  for (unsigned int v = 0; v < point_verts.size(); ++v) {
     vertices2.push_back(point_verts[v].head<3>());
     normals2.push_back(point_normals[v].head<3>());
   }
@@ -532,21 +566,13 @@ int main(int argc, char** argv) {
   SampleFromSurface(geom, xyz_surf, num_samp_near_surf / 2);
 
   auto start = std::chrono::high_resolution_clock::now();
-  SampleSDFNearSurface(
-      kdTree_surf,
-      vertices2,
-      xyz_surf,
-      normals2,
-      xyz,
-      sdf,
-      num_sample - num_samp_near_surf,
-      variance,
-      second_variance,
-      2,
-      11);
+  SampleSDFNearSurface(kdTree_surf, vertices2, xyz_surf, normals2, xyz, sdf,
+                       num_sample - num_samp_near_surf, variance,
+                       second_variance, 2, 11);
 
   auto finish = std::chrono::high_resolution_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(finish - start).count();
+  auto elapsed =
+      std::chrono::duration_cast<std::chrono::seconds>(finish - start).count();
   std::cout << elapsed << std::endl;
 
   if (save_ply) {
