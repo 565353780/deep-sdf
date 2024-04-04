@@ -33,6 +33,8 @@ elif [ "$(uname)" = "Linux" ]; then
 	sudo apt install libnanoflann-dev
 fi
 
+pip install plyfile scikit-image
+
 cd ../../../..
 mkdir build
 cd build

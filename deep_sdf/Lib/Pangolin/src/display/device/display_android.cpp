@@ -150,7 +150,7 @@ static int engine_init_display(struct engine* engine) {
     pangolin::process::Resize(engine->width,engine->height);
 
     // Initialize GL state.
-    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
+    //glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
     glEnable(GL_CULL_FACE);
     glShadeModel(GL_SMOOTH);
     glDisable(GL_DEPTH_TEST);
